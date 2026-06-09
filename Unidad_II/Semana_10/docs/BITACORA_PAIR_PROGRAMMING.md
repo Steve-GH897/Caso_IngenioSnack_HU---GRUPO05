@@ -57,8 +57,8 @@
 
 ##### SESIÓN 1
 
-![CAPTURA DE](./imagenes/CapturaSesion1.png)
+![CAPTURA DE](./Imagenes/CapturaSesion1.png)
 
 ##### SESIÓN 2
 
-![CAPTURA DE](./imagenes/CapturaSesion2.jpeg)
+![CAPTURA DE](./Imagenes/CapturaSesion2.jpeg)
