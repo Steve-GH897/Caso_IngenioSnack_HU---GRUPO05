@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="description" content="IngenioSnack - Sistema de pedidos anticipados para la cafetería universitaria. Pide desde tu celular y recoge sin filas." />
+  <title>IngenioSnack — Cafetería FIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark-theme');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<!-- ======================== SPLASH SCREEN ======================== -->
+<div id="splash-screen" class="splash-screen">
+  <div class="splash-content">
+    <div class="splash-logo-wrap">
+      <img src="logo.png" alt="IngenioSnack Logo" class="splash-logo" />
+      <div class="splash-glow"></div>
+    </div>
+    <h1 class="splash-title">IngenioSnack</h1>
+    <p class="splash-sub">Cafetería FIS · Pedidos sin filas</p>
+    <div class="splash-loader">
+      <div class="loader-bar"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== APP SHELL ======================== -->
+<div id="app" class="app hidden">
+
+  <!-- GLOBAL ALERT TOAST -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ===== VIEW: LOGIN ===== -->
+  <div id="view-login" class="view active">
+    <button class="theme-toggle-btn floating-toggle" onclick="toggleTheme()" title="Cambiar tema">
+      <span class="theme-icon">🌙</span>
+    </button>
+    <div class="login-bg">
+      <div class="login-blob blob-1"></div>
+      <div class="login-blob blob-2"></div>
+      <div class="login-blob blob-3"></div>
+    </div>
+    <div class="login-card glass-card">
+      <div class="login-logo-wrap">
+        <img src="logo.png" alt="IngenioSnack" class="login-logo" />
+      </div>
+      <h2 class="login-title">IngenioSnack</h2>
+      <p class="login-subtitle">Cafetería FIS · Pedidos sin filas</p>
+      
+      <!-- Tab Switcher -->
+
+
+      <div class="login-form">
+        <!-- Campo Correo -->
+        <label class="field-label" id="label-email" for="input-codigo">Correo Institucional UNCP</label>
+        <div class="input-wrap" id="input-codigo-wrap">
+          <span class="input-icon" id="icon-email">🎓</span>
+          <input
+            type="text"
+            id="input-codigo"
+            class="field-input"
+            placeholder="Ej: e_2024100333H@uncp.edu.pe"
+            autocomplete="off"
+          />
+        </div>
+
+        <!-- Contraseña (visible siempre) -->
+        <label class="field-label" for="input-password" style="margin-top: 15px; display: block;">Contraseña (solo administradores)</label>
+        <div class="input-wrap" id="input-password-wrap">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="input-password" class="field-input" placeholder="••••••••" onkeypress="if(event.key==='Enter') submitLogin()" />
+        </div>
+
+        <div class="login-options">
+          <button class="btn-primary btn-full" id="btn-login-submit" onclick="submitLogin()">
+            <span>Ingresar como Estudiante</span>
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+        <p id="login-error" class="login-error hidden">⚠️ Ingresa un correo institucional UNCP válido.</p>
+        <p id="login-blocked" class="login-error hidden">🚫 Tu cuenta está bloqueada por strikes acumulados.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== VIEW: MENÚ ESTUDIANTE ===== -->
+  <div id="view-menu" class="view">
+    <!-- Header -->
+    <header class="app-header" id="student-header">
+      <div class="header-left">
+        <img src="logo.png" alt="Logo" class="header-logo" />
+        <div>
+          <div class="header-title">IngenioSnack</div>
+          <div class="header-sub" id="header-greeting">Hola, Estudiante</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="student-header-nav">
+        <button class="nav-item active" onclick="switchStudentTab('menu')" id="nav-btn-menu">
+          <span class="nav-icon">🍔</span>
+          <span class="nav-text">Menú</span>
+        </button>
+        <button class="nav-item" onclick="switchStudentTab('orders')" id="nav-btn-orders">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Pedidos</span>
+        </button>
+        <button class="nav-item" onclick="switchStudentTab('rewards')" id="nav-btn-rewards">
+          <span class="nav-icon">⭐</span>
+          <span class="nav-text">Estrellas</span>
+        </button>
+      </nav>
+
+      <div class="header-right">
+        <div class="wallet-badge" id="wallet-display" title="Saldo Prepago">
+          <span>💳</span> S/ <span id="wallet-amount">0.00</span>
+        </div>
+
+        <button class="theme-toggle-btn" onclick="toggleTheme()" title="Cambiar tema">
+          <span class="theme-icon">🌙</span>
+        </button>
+        <button class="icon-btn" onclick="logout()" title="Salir">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Menu Content -->
+    <main class="menu-main">
+      
+      <!-- TAB: MENÚ -->
+      <div id="student-tab-menu" class="student-tab-content active">
+      <!-- Slanted Coffee Hero Banner -->
+      <section class="coffee-hero-banner">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <span class="hero-tagline">Cafetería FIS</span>
+          <h2 class="hero-title">Brewed to Perfection</h2>
+          <p class="hero-subtitle">Pide con ingenio y recoge sin filas. Tu combo ideal te espera.</p>
+        </div>
+        <div class="hero-slant"></div>
+      </section>
+
+      <!-- Student Dashboard: Wallet & Points -->
+      <section class="dashboard-section">
+        <div class="dashboard-grid">
+          <div class="dash-card">
+            <div class="dash-icon">💳</div>
+            <div class="dash-info">
+              <span class="dash-label">Saldo Disponible</span>
+              <span class="dash-value" id="dash-wallet">S/ 0.00</span>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-icon">⭐</div>
+            <div class="dash-info">
+              <span class="dash-label">Puntos Acumulados</span>
+              <span class="dash-value" id="dash-points">0 / 50</span>
+            </div>
+            <div class="dash-progress-wrap" title="50 puntos = 1 Café Americano Gratis">
+              <div class="dash-progress-bar" id="dash-points-bar" style="width: 0%"></div>
+            </div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-icon">📈</div>
+            <div class="dash-info">
+              <span class="dash-label">Total Gastado</span>
+              <span class="dash-value" id="dash-spent">S/ 0.00</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recomendaciones -->
+      <section class="recommendations-section" id="recommendations-section" style="display:none;">
+        <h3 class="section-title">🌟 Recomendaciones para ti</h3>
+        <div class="recommendations-grid" id="recommendations-grid">
+          <!-- Injected by JS -->
+        </div>
+      </section>
+
+      <!-- Category Tabs -->
+      <div class="category-tabs-wrap">
+        <div class="category-tabs" id="category-tabs">
+          <button class="cat-tab active" data-cat="todos" onclick="filterCategory('todos')">🍽️ Todos</button>
+          <button class="cat-tab" data-cat="sandwiches" onclick="filterCategory('sandwiches')">🥪 Sándwiches</button>
+          <button class="cat-tab" data-cat="bebidas" onclick="filterCategory('bebidas')">☕ Bebidas</button>
+          <button class="cat-tab" data-cat="snacks" onclick="filterCategory('snacks')">🍪 Snacks</button>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <section class="products-section">
+        <div class="products-grid" id="products-grid">
+          <!-- Products injected by JS -->
+        </div>
+      </section>
+
+
+      </div>
+
+      <!-- TAB: MIS PEDIDOS -->
+      <div id="student-tab-orders" class="student-tab-content">
+        <section class="my-orders-section">
+          <h3 class="section-title">📋 Mis Pedidos Recientes</h3>
+          <p class="section-desc">Vuelve a pedir tus favoritos con un clic.</p>
+          <div id="my-orders-list" class="my-orders-list">
+            <p class="empty-state">No tienes pedidos recientes.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- TAB: RECOMPENSAS -->
+      <div id="student-tab-rewards" class="student-tab-content">
+        <section class="rewards-section">
+          <h3 class="section-title">⭐ Programa de Recompensas</h3>
+          <p class="section-desc">Gana estrellas con tus compras y desbloquea niveles.</p>
+          
+          <div class="rewards-dashboard">
+            <div class="tier-badge" id="rewards-tier-badge">Nivel: Bronce</div>
+            <div class="stars-circle">
+              <span id="rewards-stars-count" class="stars-number">0</span>
+              <span class="stars-label">Estrellas</span>
+            </div>
+            <div class="tier-progress-wrap">
+              <div class="tier-progress-bar" id="rewards-progress-bar" style="width: 0%"></div>
+            </div>
+            <p class="tier-next-msg" id="rewards-next-msg">Faltan 50 estrellas para Plata</p>
+          </div>
+
+          <!-- Sección de Niveles de Ascenso -->
+          <div class="rewards-tiers-section">
+            <h4 class="tiers-title">🏆 Niveles de Ascenso</h4>
+            <div class="rewards-tiers-grid">
+              <div class="tier-card-item bronze-tier" id="tier-card-bronze">
+                <div class="tier-card-badge">🥉 Bronce</div>
+                <div class="tier-card-stars">100 ⭐</div>
+                <p class="tier-card-desc">Acceso básico, acumulación estándar y canje de snacks simples.</p>
+              </div>
+              <div class="tier-card-item silver-tier" id="tier-card-silver">
+                <div class="tier-card-badge">🥈 Plata</div>
+                <div class="tier-card-stars">200 ⭐</div>
+                <p class="tier-card-desc">1 Bebida o café gratis al mes y acceso prioritario a sorteos.</p>
+              </div>
+              <div class="tier-card-item gold-tier" id="tier-card-gold">
+                <div class="tier-card-badge">🥇 Oro</div>
+                <div class="tier-card-stars">300 ⭐</div>
+                <p class="tier-card-desc">1 Combo gratis al mes, atención preferencial sin filas y regalos sorpresa.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="rewards-benefits">
+            <h4>Tus Beneficios Actuales</h4>
+            <ul id="rewards-benefits-list">
+              <li>Acumula estrellas en compras seleccionadas.</li>
+            </ul>
+          </div>
+        </section>
+      </div>
+
+    </main>
+
+    <!-- Student Bottom Nav removed (moved to header) -->
+
+    <!-- Floating Cart Button -->
+    <button class="floating-cart-btn hidden" id="floating-cart-btn" onclick="toggleCart()">
+      🛒 Ver Carrito
+      <span class="cart-total-float" id="cart-total-float">S/ 0.00</span>
+      <span class="cart-badge-float" id="cart-badge-float">0</span>
+    </button>
+
+    <!-- Floating Cart Panel -->
+    <div class="cart-overlay hidden" id="cart-overlay" onclick="closeCart()"></div>
+    <div class="cart-panel" id="cart-panel">
+      <div class="cart-header">
+        <h3>🛒 Tu Carrito</h3>
+        <button class="close-btn" onclick="closeCart()">✕</button>
+      </div>
+      <div class="cart-items" id="cart-items">
+        <p class="empty-state">Tu carrito está vacío.</p>
+      </div>
+      <div class="cart-footer" id="cart-footer">
+        <div class="cart-total">
+          <span>Total:</span>
+          <span id="cart-total-amount">S/ 0.00</span>
+        </div>
+        <div class="payment-badge">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          💵 Solo Pago Contra Entrega
+        </div>
+        <button class="btn-primary btn-full" id="btn-confirm-order" onclick="confirmOrder()">
+          ✅ Confirmar Pedido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== VIEW: TICKET DE PEDIDO ===== -->
+  <div id="view-ticket" class="view">
+    <div class="ticket-bg">
+      <div class="ticket-blob t-blob-1"></div>
+      <div class="ticket-blob t-blob-2"></div>
+    </div>
+    <div class="ticket-wrapper">
+      <div class="ticket-card" id="ticket-card">
+        <div class="ticket-header">
+          <img src="logo.png" alt="Logo" class="ticket-logo" />
+          <h2>IngenioSnack</h2>
+          <p>Cafetería FIS</p>
+        </div>
+        <div class="ticket-divider">
+          <div class="ticket-hole left"></div>
+          <div class="ticket-dashes"></div>
+          <div class="ticket-hole right"></div>
+        </div>
+        <div class="ticket-number-section">
+          <p class="ticket-label">NÚMERO DE PEDIDO</p>
+          <div class="ticket-number" id="ticket-number">---</div>
+          <div class="ticket-qr-placeholder" id="ticket-qr">
+            <div class="qr-grid"></div>
+            <span>Código QR</span>
+          </div>
+        </div>
+        <div class="ticket-divider">
+          <div class="ticket-hole left"></div>
+          <div class="ticket-dashes"></div>
+          <div class="ticket-hole right"></div>
+        </div>
+        <div class="ticket-details">
+          <div class="ticket-row">
+            <span>Estudiante:</span>
+            <span id="ticket-student">---</span>
+          </div>
+          <div class="ticket-row">
+            <span>Hora del pedido:</span>
+            <span id="ticket-time">---</span>
+          </div>
+          <div id="ticket-items-list" class="ticket-items-list"></div>
+          <div class="ticket-row ticket-total">
+            <span>TOTAL A PAGAR:</span>
+            <span id="ticket-total">S/ 0.00</span>
+          </div>
+        </div>
+        <div class="ticket-status-section">
+          <div class="status-pill pending" id="ticket-status-pill">
+            <span class="status-dot"></span>
+            <span id="ticket-status-text">Pendiente</span>
+          </div>
+          <div class="ticket-elapsed-wrap">
+            <span class="ticket-elapsed-label">🕐 Tiempo:</span>
+            <span id="ticket-elapsed" class="ticket-elapsed">—</span>
+          </div>
+          <p class="ticket-instruction">Espera que tu número aparezca en la <strong>pantalla de la cafetería</strong> antes de acercarte.</p>
+        </div>
+        <div class="ticket-footer">
+          <p>💵 Pago contra entrega al recoger</p>
+          <p>⚠️ No recoger genera un STRIKE en tu cuenta</p>
+        </div>
+      </div>
+      <div class="ticket-btn-group">
+        <button class="btn-ghost btn-full" onclick="goToMenu()" id="btn-back-menu">← Volver al Menú</button>
+        <button class="btn-share btn-full" onclick="shareOrder(document.getElementById('ticket-number').textContent)" id="btn-share-order">📤 Compartir Pedido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== VIEW: ADMIN PANEL ===== -->
+  <div id="view-admin" class="view">
+    <header class="app-header admin-header">
+      <div class="header-left">
+        <img src="logo.png" alt="Logo" class="header-logo" />
+        <div>
+          <div class="header-title">Panel Admin</div>
+          <div class="header-sub">Sr. Julio · IngenioSnack</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="admin-menu-container">
+          <button class="icon-btn hamburger-btn" onclick="toggleAdminMenu()" title="Menú">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <div class="admin-dropdown-menu" id="admin-dropdown">
+            <button class="dropdown-item" onclick="showAdminTab('queue')" id="tab-btn-queue">📋 Cola</button>
+            <button class="dropdown-item" onclick="showAdminTab('inventory')" id="tab-btn-inventory">📦 Inventario</button>
+            <button class="dropdown-item" onclick="showAdminTab('recipes')" id="tab-btn-recipes">🍳 Recetas</button>
+            <button class="dropdown-item" onclick="showAdminTab('analytics')" id="tab-btn-analytics">📊 Analítica</button>
+            <button class="dropdown-item" onclick="showAdminTab('students')" id="tab-btn-students">👥 Estudiantes</button>
+            <button class="dropdown-item" onclick="openPublicQueue()" id="tab-btn-public" title="Pantalla de cola para proyectar">📺 Pantalla Pública</button>
+          </div>
+        </div>
+        <button class="theme-toggle-btn" onclick="toggleTheme()" title="Cambiar tema">
+          <span class="theme-icon">🌙</span>
+        </button>
+        <button class="icon-btn" onclick="logout()" title="Salir">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="admin-main">
+      <!-- STATS BAR -->
+      <div class="admin-stats-bar">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-pending">0</div>
+          <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-value" id="stat-ready">0</div>
+          <div class="stat-label">Listos</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-value" id="stat-delivered">0</div>
+          <div class="stat-label">Entregados</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-value" id="stat-noshow">0</div>
+          <div class="stat-label">No Recogidos</div>
+        </div>
+      </div>
+
+      <!-- TAB: QUEUE -->
+      <div id="admin-tab-queue" class="admin-tab-content active">
+        <h3 class="section-title">📋 Cola de Pedidos</h3>
+        <div id="admin-orders-list" class="admin-orders-list">
+          <p class="empty-state">No hay pedidos activos.</p>
+        </div>
+      </div>
+
+      <!-- TAB: INVENTORY -->
+      <div id="admin-tab-inventory" class="admin-tab-content">
+        <h3 class="section-title">📦 Control de Inventario</h3>
+        <p class="section-desc">Gestiona el stock de los insumos y la disponibilidad de productos.</p>
+        
+        <div class="inventory-container">
+          <!-- Columna Izquierda: Insumos -->
+          <div class="inventory-section-left">
+            <h4 class="sub-title" style="margin-bottom: 12px; font-weight: 700; color: var(--color-primary);">🌾 Insumos en Cocina</h4>
+            <div class="add-ingredient-inline" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+              <input type="text" id="new-ing-name" class="field-input" placeholder="Nombre (ej. Queso)..." style="flex: 2; min-width: 140px;" />
+              <input type="number" id="new-ing-stock" class="field-input" placeholder="Stock..." style="width: 80px;" />
+              <input type="text" id="new-ing-unit" class="field-input" placeholder="Unid (gr, ml, unid)..." style="width: 100px;" />
+              <button class="btn-primary" onclick="createIngredient()" style="padding: 10px 16px;">+ Insumo</button>
+            </div>
+            <div class="table-scroll-wrap" style="overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface);">
+              <table class="inventory-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background: var(--color-surface2); border-bottom: 1px solid var(--color-border);">
+                    <th style="padding: 10px 12px; font-weight: 600;">Insumo</th>
+                    <th style="padding: 10px 12px; font-weight: 600;">Stock Actual</th>
+                    <th style="padding: 10px 12px; font-weight: 600;">Unidad</th>
+                    <th style="padding: 10px 12px; font-weight: 600;">Umbral Mín.</th>
+                    <th style="padding: 10px 12px; font-weight: 600;">Estado</th>
+                    <th style="padding: 10px 12px; font-weight: 600;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="ingredients-table-body">
+                  <!-- Inyectado por JS -->
+                </tbody>
+               </table>
+            </div>
+          </div>
+          
+          <!-- Columna Derecha: Productos -->
+          <div class="inventory-section-right">
+            <h4 class="sub-title" style="margin-bottom: 8px; font-weight: 700; color: var(--color-primary);">🍔 Estado de Productos</h4>
+            <p style="font-size: 0.72rem; color: var(--color-text-muted); margin-bottom: 12px;">Se desactivan automáticamente si faltan insumos, pero puedes forzar su desactivación manual.</p>
+            <div id="admin-inventory-list" class="admin-inventory-list">
+              <!-- Inyectado por JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: RECIPES -->
+      <div id="admin-tab-recipes" class="admin-tab-content">
+        <h3 class="section-title">🍳 Fórmulas de Recetas</h3>
+        <p class="section-desc">Configura los insumos necesarios para preparar cada uno de los productos.</p>
+        
+        <div class="recipes-container" style="display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start;">
+          <!-- Lista de productos -->
+          <div class="recipes-products-list" id="recipes-products-list" style="display: flex; flex-direction: column; gap: 8px; background: var(--color-surface); padding: 14px; border-radius: var(--radius-lg); border: 1px solid var(--color-border); max-height: 70vh; overflow-y: auto;">
+            <!-- Inyectado por JS -->
+          </div>
+          
+          <!-- Formulario de edición de receta del producto seleccionado -->
+          <div class="recipe-editor-panel" id="recipe-editor-panel" style="background: var(--color-surface); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--color-border); min-height: 300px;">
+            <div class="empty-state" style="color: var(--color-text-dim); text-align: center; padding: 40px;">Selecciona un producto a la izquierda para ver y editar su receta.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: ANALYTICS -->
+      <div id="admin-tab-analytics" class="admin-tab-content">
+        <h3 class="section-title">📊 Analítica de Ventas</h3>
+        <div class="analytics-filter">
+          <label class="field-label" for="analytics-from">Desde</label>
+          <input type="date" id="analytics-from" class="field-input date-input" />
+          <label class="field-label" for="analytics-to">Hasta</label>
+          <input type="date" id="analytics-to" class="field-input date-input" />
+          <button class="btn-primary" onclick="filterAnalytics()">Filtrar</button>
+        </div>
+        <div class="analytics-chart-wrap">
+          <canvas id="analytics-chart" class="analytics-chart"></canvas>
+        </div>
+        <div id="analytics-results" class="analytics-results">
+          <!-- Ranking injected by JS -->
+        </div>
+
+        <!-- HISTORIAL FILTRADO -->
+        <div class="history-section">
+          <h4 class="history-title">📜 Historial de Pedidos</h4>
+          <div class="history-filters">
+            <select id="history-status" class="field-input history-select">
+              <option value="all">📦 Todos los estados</option>
+              <option value="delivered">✅ Entregados</option>
+              <option value="noshow">⚠️ No Recogidos</option>
+              <option value="cancelled">❌ Cancelados</option>
+              <option value="pending">⏳ Pendientes</option>
+              <option value="preparing">👨‍🍳 Preparando</option>
+              <option value="ready">🔔 Listos</option>
+            </select>
+            <input type="text" id="history-student" class="field-input" placeholder="🔍 Filtrar por estudiante..." style="flex:1;min-width:140px" />
+            <input type="date" id="history-from" class="field-input date-input" />
+            <input type="date" id="history-to"   class="field-input date-input" />
+            <button class="btn-primary" onclick="loadHistory()">Buscar</button>
+          </div>
+          <div id="history-list" class="history-list">
+            <p class="empty-state">Usa los filtros para buscar pedidos históricos.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: STUDENTS -->
+      <div id="admin-tab-students" class="admin-tab-content">
+        <h3 class="section-title">👥 Gestión de Estudiantes</h3>
+        <p class="section-desc">Consulta el estado de los estudiantes y recarga su Saldo Prepago.</p>
+        <div class="students-search-wrap">
+          <input type="text" id="students-search" class="field-input" placeholder="🔍 Buscar por nombre o correo..." oninput="filterStudentsList()" />
+        </div>
+        <div id="admin-students-list" class="admin-students-list">
+          <p class="empty-state">Cargando estudiantes...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== VIEW: PANTALLA PÚBLICA DE COLA ===== -->
+  <div id="view-queue-public" class="view">
+    <div class="public-queue-bg">
+      <div class="pq-blob pq-blob-1"></div>
+      <div class="pq-blob pq-blob-2"></div>
+    </div>
+    <div class="public-queue-wrapper">
+      <div class="pq-header">
+        <img src="logo.png" alt="Logo" class="pq-logo" />
+        <h1 class="pq-title">IngenioSnack</h1>
+        <p class="pq-sub">Pedidos Listos para Recoger 🎉</p>
+      </div>
+      <div class="pq-ready-section">
+        <div class="pq-numbers-grid" id="pq-numbers-grid">
+          <div class="pq-empty">Esperando pedidos listos...</div>
+        </div>
+      </div>
+      <div class="pq-clock" id="pq-clock">--:--:--</div>
+      <div class="pq-footer">
+        <button class="btn-ghost-sm" onclick="leavePublicQueue()">← Salir</button>
+        <p>🍔 ¡Disfruta tu pedido!</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end #app -->
+
+<!-- ===== MODAL: DETALLE DE PRODUCTO ===== -->
+<div id="product-modal" class="product-modal-overlay" onclick="closeProductModal()">
+  <div class="product-modal-box" onclick="event.stopPropagation()">
+    <button class="product-modal-close" onclick="closeProductModal()">✕</button>
+    <div class="product-modal-img-wrap">
+      <img id="product-modal-img" src="" alt="Producto" class="product-modal-img" />
+      <div id="product-modal-emoji" class="product-modal-emoji-fallback"></div>
+    </div>
+    <div class="product-modal-body">
+      <div class="product-modal-category" id="product-modal-category"></div>
+      <h2 class="product-modal-name" id="product-modal-name"></h2>
+      <p class="product-modal-desc" id="product-modal-desc"></p>
+      <div class="product-modal-footer">
+        <span class="product-modal-price" id="product-modal-price"></span>
+        <button class="btn-primary" id="product-modal-add-btn" onclick="addFromModal()">+ Añadir al carrito</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: RECARGA DE SALDO (ADMIN) ===== -->
+<div id="recharge-modal" class="product-modal-overlay" onclick="closeRechargeModal()">
+  <div class="product-modal-box" onclick="event.stopPropagation()" style="max-width: 400px;">
+    <button class="product-modal-close" onclick="closeRechargeModal()">✕</button>
+    <div class="product-modal-body" style="padding-top: 2rem;">
+      <h2 class="product-modal-name">Recargar Saldo</h2>
+      <p class="product-modal-desc" id="recharge-student-name">Estudiante: ...</p>
+      
+      <label class="field-label" style="margin-top:1rem;">Monto a recargar (S/)</label>
+      <input type="number" id="recharge-amount" class="field-input" placeholder="Ej. 20.00" min="1" step="1" />
+      
+      <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+        <button class="btn-ghost-sm" onclick="document.getElementById('recharge-amount').value='10'">+10</button>
+        <button class="btn-ghost-sm" onclick="document.getElementById('recharge-amount').value='20'">+20</button>
+        <button class="btn-ghost-sm" onclick="document.getElementById('recharge-amount').value='50'">+50</button>
+      </div>
+
+      <div class="product-modal-footer" style="margin-top: 1.5rem; justify-content: flex-end;">
+        <button class="btn-ghost" onclick="closeRechargeModal()">Cancelar</button>
+        <button class="btn-primary" onclick="submitRecharge()">Recargar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
