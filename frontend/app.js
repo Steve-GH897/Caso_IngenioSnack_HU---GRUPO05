@@ -42,6 +42,18 @@ window.addEventListener('DOMContentLoaded', () => {
   // Campo de contraseña dinámico (Mejora 1)
   initLoginDynamicField();
 
+  // Sombra sticky en scroll
+  window.addEventListener('scroll', () => {
+    const header = document.getElementById('student-header');
+    if (header) {
+      header.classList.toggle('scrolled', window.scrollY > 10);
+    }
+    const adminHeader = document.querySelector('.admin-header');
+    if (adminHeader) {
+      adminHeader.classList.toggle('scrolled', window.scrollY > 10);
+    }
+  });
+
   // Verificar que el servidor esté disponible
   checkServerHealth();
 });
@@ -109,6 +121,13 @@ function initLoginDynamicField() {
       passLabel.style.opacity   = isAdmin ? '1' : '0';
       passLabel.style.marginTop = isAdmin ? '15px' : '0';
     }
+    const btnSubmit = document.getElementById('btn-login-submit');
+    if (btnSubmit) {
+      const labelSpan = btnSubmit.querySelector('span');
+      if (labelSpan) {
+        labelSpan.textContent = isAdmin ? 'Acceder como Administrador' : 'Acceder al Sistema';
+      }
+    }
     if (!isAdmin) {
       document.getElementById('input-password').value = '';
     }
@@ -153,6 +172,10 @@ async function submitLogin() {
     localStorage.setItem('jwt_token', result.token);
 
     if (result.role === 'admin') {
+      const adminSubtitle = document.getElementById('admin-header-subtitle');
+      if (adminSubtitle && result.student) {
+        adminSubtitle.textContent = `${formatShortName(result.student.name)} · Administrador`;
+      }
       showView('view-admin');
       await loadAdminOrders();
       await loadAdminInventory();
@@ -191,6 +214,9 @@ async function submitLogin() {
 }
 
 function logout() {
+  if (APP_STATE.currentUser) {
+    if (!confirm('¿Seguro que deseas cerrar sesión?')) return;
+  }
   APP_STATE.currentUser = null;
   APP_STATE.cart = [];
   APP_STATE.products = [];
@@ -227,8 +253,9 @@ function setLoginLoading(loading) {
     if (btnSubmit) btnSubmit.innerHTML = '<span>Verificando...</span>';
   } else {
     if (btnSubmit) {
-      const isStudent = window.currentLoginTab === 'student';
-      btnSubmit.innerHTML = `<span>Ingresar como ${isStudent ? 'Estudiante' : 'Administrador'}</span><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+      const val = document.getElementById('input-codigo')?.value.toLowerCase() || '';
+      const isAdmin = val.includes('admin');
+      btnSubmit.innerHTML = `<span>${isAdmin ? 'Acceder como Administrador' : 'Acceder al Sistema'}</span><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
     }
   }
 }
@@ -237,8 +264,37 @@ function setLoginLoading(loading) {
 //  PRODUCTS — Cargar desde API
 // =============================================
 async function loadProducts() {
+  const grid = document.getElementById('products-grid');
+  if (grid) {
+    grid.innerHTML = Array(6).fill().map(() => `
+      <div class="product-card skeleton-card">
+        <div class="skeleton-img skeleton"></div>
+        <div class="product-info">
+          <div class="skeleton-text-lg skeleton" style="margin: 0 0 8px;"></div>
+          <div class="skeleton-text-sm skeleton" style="margin: 0; width: 60%;"></div>
+        </div>
+        <div class="product-footer" style="border: none;">
+          <div class="skeleton-price skeleton" style="margin: 0; width: 40%; height: 16px;"></div>
+        </div>
+      </div>
+    `).join('');
+  }
   try {
     APP_STATE.products = await apiGet('/products');
+    
+    // Inyectar el número de productos activos en el Hero Banner
+    const activeProductsCount = APP_STATE.products.filter(p => p.available).length;
+    const bannerSub = document.querySelector('.coffee-hero-banner .hero-subtitle');
+    if (bannerSub) {
+      let badge = document.getElementById('hero-count-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'hero-count-badge';
+        badge.className = 'hero-count-badge';
+        bannerSub.parentNode.insertBefore(badge, bannerSub.nextSibling);
+      }
+      badge.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> <span>${activeProductsCount} productos disponibles hoy</span>`;
+    }
   } catch (err) {
     showToast('danger', '⚠️', 'Error', 'No se pudo cargar el menú.');
   }
@@ -282,7 +338,7 @@ function renderMenu() {
       </div>
       <div class="product-info">
         <div class="product-name">${product.name}</div>
-        <div class="product-category">${product.category}</div>
+        <div class="product-category"><span class="cat-dot ${product.category}"></span>${product.category.charAt(0).toUpperCase() + product.category.slice(1)}</div>
         ${product.description ? `<div class="product-desc-preview">${product.description.slice(0, 60)}${product.description.length > 60 ? '.' : ''}</div>` : ''}
       </div>
       <div class="product-footer">
@@ -355,9 +411,11 @@ function updateCartBadge() {
   const floatingBtn = document.getElementById('floating-cart-btn');
   const floatingBadge = document.getElementById('cart-badge-float');
   const floatingTotal = document.getElementById('cart-total-float');
+  const cartHeaderCount = document.getElementById('cart-header-count');
 
   if (floatingBadge) floatingBadge.textContent = totalQty;
   if (floatingTotal) floatingTotal.textContent = `S/ ${totalAmt.toFixed(2)}`;
+  if (cartHeaderCount) cartHeaderCount.textContent = totalQty;
 
   if (floatingBtn) {
     if (totalQty > 0) {
@@ -366,16 +424,28 @@ function updateCartBadge() {
       floatingBtn.classList.add('hidden');
     }
   }
+
+  // Deshabilitar botón de confirmar si está vacío
+  const btnConfirm = document.getElementById('btn-confirm-order');
+  if (btnConfirm) {
+    btnConfirm.disabled = totalQty === 0;
+    btnConfirm.style.opacity = totalQty === 0 ? '0.4' : '1';
+  }
 }
 
 function renderCartItems() {
   const container = document.getElementById('cart-items');
   const totalEl   = document.getElementById('cart-total-amount');
+  const walletEl  = document.getElementById('cart-wallet-available');
   if (!container) return;
 
   if (APP_STATE.cart.length === 0) {
     container.innerHTML = '<p class="empty-state">Tu carrito está vacío.</p>';
     if (totalEl) totalEl.textContent = 'S/ 0.00';
+    if (walletEl && APP_STATE.currentUser) {
+      walletEl.textContent = `S/ ${parseFloat(APP_STATE.currentUser.walletBalance || 0).toFixed(2)}`;
+      walletEl.className = "cart-wallet-val";
+    }
     return;
   }
 
@@ -384,9 +454,15 @@ function renderCartItems() {
     const product = getProduct(item.productCode);
     const isOOS   = product && !product.available;
     total += item.price;
+
+    const imgHtml = product && product.imageUrl
+      ? `<img src="${product.imageUrl}" alt="${item.name}" class="cart-item-thumb" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+         <div class="cart-item-emoji-box" style="display:none">${item.emoji}</div>`
+      : `<div class="cart-item-emoji-box">${item.emoji}</div>`;
+
     return `
       <div class="cart-item ${isOOS ? 'out-of-stock-alert' : ''}" id="cart-item-${item.productCode}">
-        <div class="cart-item-emoji">${item.emoji}</div>
+        ${imgHtml}
         <div class="cart-item-info">
           <div class="cart-item-name">${item.name}</div>
           <div class="cart-item-price">${formatPrice(item.price)}</div>
@@ -403,6 +479,16 @@ function renderCartItems() {
   }).join('');
 
   if (totalEl) totalEl.textContent = formatPrice(total);
+
+  if (walletEl && APP_STATE.currentUser) {
+    const balance = parseFloat(APP_STATE.currentUser.walletBalance || 0);
+    walletEl.textContent = `S/ ${balance.toFixed(2)}`;
+    if (balance < total) {
+      walletEl.className = "cart-wallet-val cart-wallet-warn";
+    } else {
+      walletEl.className = "cart-wallet-val";
+    }
+  }
 }
 
 function toggleCart() {
@@ -451,7 +537,7 @@ async function confirmOrder() {
   const btnConfirm = document.getElementById('btn-confirm-order');
   if (btnConfirm) {
     btnConfirm.disabled = true;
-    btnConfirm.textContent = '⏳ Procesando...';
+    btnConfirm.innerHTML = '<span class="btn-spinner"></span> <span>Procesando...</span>';
   }
 
   try {
@@ -513,7 +599,7 @@ async function confirmOrder() {
   } finally {
     if (btnConfirm) {
       btnConfirm.disabled    = false;
-      btnConfirm.textContent = '✅ Confirmar Pedido';
+      btnConfirm.innerHTML = '✅ Confirmar Pedido';
     }
   }
 }
@@ -538,6 +624,7 @@ function renderTicket(order) {
   }
 
   updateTicketStatus(order.status);
+  updateTimeline(order.status);
 
   // Iniciar timer de tiempo transcurrido
   startElapsedTimer(order.createdAt);
@@ -549,6 +636,43 @@ function renderTicket(order) {
     stopTicketPolling();
     stopElapsedTimer();
   }
+}
+
+function updateTimeline(status) {
+  const steps = ['pending', 'preparing', 'ready', 'delivered'];
+  const statusIndex = steps.indexOf(status);
+  const isCancelled = ['cancelled', 'noshow'].includes(status);
+  
+  steps.forEach((step, idx) => {
+    const el = document.getElementById(`tl-step-${step}`);
+    if (!el) return;
+    
+    el.className = 'tl-step'; // Reset classes
+    
+    if (isCancelled) {
+      if (idx < 3) {
+        el.classList.add('tl-done');
+      } else if (idx === 3) {
+        el.classList.add('tl-cancelled');
+        const label = el.querySelector('.tl-label');
+        if (label) label.textContent = status === 'noshow' ? 'No Recogido' : 'Cancelado';
+      }
+    } else {
+      if (status === 'delivered') {
+        el.classList.add('tl-done');
+      } else {
+        if (idx < statusIndex) {
+          el.classList.add('tl-done');
+        } else if (idx === statusIndex) {
+          el.classList.add('tl-active');
+        }
+      }
+      if (step === 'delivered') {
+        const label = el.querySelector('.tl-label');
+        if (label) label.textContent = 'Entregado';
+      }
+    }
+  });
 }
 
 function updateTicketStatus(status) {
@@ -563,7 +687,13 @@ function updateTicketStatus(status) {
     noshow:    { label: 'No Recogido',                     cls: 'cancelled' },
   };
   const s = statusMap[status] || statusMap['pending'];
-  if (pill) pill.className = `status-pill ${s.cls}`;
+  if (pill) {
+    pill.className = `status-pill ${s.cls}`;
+    // Pop animation
+    pill.classList.remove('status-change-pop');
+    void pill.offsetWidth; // trigger reflow
+    pill.classList.add('status-change-pop');
+  }
   if (text) text.textContent = s.label;
 }
 
@@ -637,14 +767,38 @@ function updateWalletDisplay() {
   
   // Header badge
   const walletAmount = document.getElementById('wallet-amount');
-  if (walletAmount) walletAmount.textContent = parseFloat(user.walletBalance || 0).toFixed(2);
+  if (walletAmount) {
+    const newAmount = parseFloat(user.walletBalance || 0).toFixed(2);
+    if (walletAmount.textContent !== newAmount) {
+      walletAmount.textContent = newAmount;
+      walletAmount.classList.remove('value-flash');
+      void walletAmount.offsetWidth; // trigger reflow
+      walletAmount.classList.add('value-flash');
+    }
+  }
 
   // Dashboard cards
   const dashWallet = document.getElementById('dash-wallet');
-  if (dashWallet) dashWallet.textContent = `S/ ${parseFloat(user.walletBalance || 0).toFixed(2)}`;
+  if (dashWallet) {
+    const newDashAmount = `S/ ${parseFloat(user.walletBalance || 0).toFixed(2)}`;
+    if (dashWallet.textContent !== newDashAmount) {
+      dashWallet.textContent = newDashAmount;
+      dashWallet.classList.remove('value-flash');
+      void dashWallet.offsetWidth; // trigger reflow
+      dashWallet.classList.add('value-flash');
+    }
+  }
   
   const dashPoints = document.getElementById('dash-points');
-  if (dashPoints) dashPoints.textContent = `${Math.floor(user.points || 0)} ⭐`;
+  if (dashPoints) {
+    const newPointsText = `${Math.floor(user.points || 0)} ⭐`;
+    if (dashPoints.textContent !== newPointsText) {
+      dashPoints.textContent = newPointsText;
+      dashPoints.classList.remove('value-flash');
+      void dashPoints.offsetWidth; // trigger reflow
+      dashPoints.classList.add('value-flash');
+    }
+  }
   
   const dashPointsBar = document.getElementById('dash-points-bar');
   if (dashPointsBar) {
@@ -688,7 +842,7 @@ function updateRewardsView(stars) {
       'Atención preferencial sin filas.',
       'Regalos sorpresa de la Cafetería.'
     ];
-    nextMsg.textContent = '¡Has alcanzado el nivel máximo (Oro)! 🏆';
+    nextMsg.textContent = `¡Has alcanzado el nivel máximo (Oro)! 🏆 (${stars} ⭐ acumuladas)`;
     tierColor = '#d4af37'; // Gold
   } else if (stars >= 200) {
     tier = 'Plata';
@@ -699,7 +853,7 @@ function updateRewardsView(stars) {
       '1 Bebida o café gratis al mes.',
       'Acceso a sorteos mensuales.'
     ];
-    nextMsg.textContent = `Faltan ${300 - stars} estrellas para Oro`;
+    nextMsg.textContent = `${stars} / 300 ⭐ para Oro (Faltan ${300 - stars} ⭐)`;
     tierColor = '#c0c0c0'; // Silver
   } else if (stars >= 100) {
     tier = 'Bronce';
@@ -709,10 +863,10 @@ function updateRewardsView(stars) {
       'Acumula estrellas en compras seleccionadas.',
       'Acceso a canjes básicos (snacks).'
     ];
-    nextMsg.textContent = `Faltan ${200 - stars} estrellas para Plata`;
+    nextMsg.textContent = `${stars} / 200 ⭐ para Plata (Faltan ${200 - stars} ⭐)`;
     tierColor = '#cd7f32'; // Bronze
   } else {
-    nextMsg.textContent = `Faltan ${100 - stars} estrellas para Bronce`;
+    nextMsg.textContent = `${stars} / 100 ⭐ para Bronce (Faltan ${100 - stars} ⭐)`;
   }
 
   tierBadge.textContent = `Nivel: ${tier}`;
@@ -806,37 +960,46 @@ function renderAdminOrders() {
     return;
   }
 
-  container.innerHTML = active.map(order => `
-    <div class="admin-order-card" id="admin-order-${order.id}">
-      <div class="admin-order-header">
-        <div>
-          <div class="admin-order-num">${order.orderCode}</div>
-          <div class="admin-order-meta">${formatShortName(order.studentName)} · ${formatTime(order.createdAt)}</div>
+  container.innerHTML = active.map(order => {
+    const minutesElapsed = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000);
+    let urgencyClass = '';
+    if (['pending', 'preparing'].includes(order.status)) {
+      if (minutesElapsed >= 10) urgencyClass = 'urgency-high';
+      else if (minutesElapsed >= 5) urgencyClass = 'urgency-medium';
+    }
+
+    return `
+      <div class="admin-order-card ${urgencyClass}" id="admin-order-${order.id}">
+        <div class="admin-order-header">
+          <div>
+            <div class="admin-order-num">${order.orderCode}</div>
+            <div class="admin-order-meta">${formatShortName(order.studentName)} · ${formatTime(order.createdAt)}</div>
+          </div>
+          <span class="status-badge ${order.status}">${statusLabel(order.status)}</span>
         </div>
-        <span class="status-badge ${order.status}">${statusLabel(order.status)}</span>
-      </div>
-      <div class="admin-order-body">
-        <div class="admin-order-items">
-          ${order.items.map(i => `${i.emoji} ${i.name} ×${i.qty}`).join(' &nbsp;|&nbsp; ')}
+        <div class="admin-order-body">
+          <div class="admin-order-items">
+            ${order.items.map(i => `${i.emoji} ${i.name} ×${i.qty}`).join(' &nbsp;|&nbsp; ')}
+          </div>
+          <div class="admin-order-total">Total: ${formatPrice(order.total)}</div>
         </div>
-        <div class="admin-order-total">Total: ${formatPrice(order.total)}</div>
+        <div class="admin-order-actions">
+          ${order.status === 'pending' ? `
+            <button class="action-btn ready"     onclick="updateOrderStatus(${order.id}, 'preparing')">👨‍🍳 Aceptar (Preparando)</button>
+            <button class="action-btn cancel"    onclick="updateOrderStatusSafe(${order.id}, 'cancelled')">❌ Cancelar</button>
+          ` : ''}
+          ${order.status === 'preparing' ? `
+            <button class="action-btn ready"     onclick="updateOrderStatus(${order.id}, 'ready')">✅ Listo para Recoger</button>
+            <button class="action-btn cancel"    onclick="updateOrderStatusSafe(${order.id}, 'cancelled')">❌ Cancelar</button>
+          ` : ''}
+          ${order.status === 'ready' ? `
+            <button class="action-btn delivered" onclick="updateOrderStatus(${order.id}, 'delivered')">📦 Marcar Entregado</button>
+            <button class="action-btn noshow"    onclick="updateOrderStatusSafe(${order.id}, 'noshow')">⚠️ No Recogido</button>
+          ` : ''}
+        </div>
       </div>
-      <div class="admin-order-actions">
-        ${order.status === 'pending' ? `
-          <button class="action-btn ready"     onclick="updateOrderStatus(${order.id}, 'preparing')">👨‍🍳 Aceptar (Preparando)</button>
-          <button class="action-btn cancel"    onclick="updateOrderStatusSafe(${order.id}, 'cancelled')">❌ Cancelar</button>
-        ` : ''}
-        ${order.status === 'preparing' ? `
-          <button class="action-btn ready"     onclick="updateOrderStatus(${order.id}, 'ready')">✅ Listo para Recoger</button>
-          <button class="action-btn cancel"    onclick="updateOrderStatusSafe(${order.id}, 'cancelled')">❌ Cancelar</button>
-        ` : ''}
-        ${order.status === 'ready' ? `
-          <button class="action-btn delivered" onclick="updateOrderStatus(${order.id}, 'delivered')">📦 Marcar Entregado</button>
-          <button class="action-btn noshow"    onclick="updateOrderStatusSafe(${order.id}, 'noshow')">⚠️ No Recogido</button>
-        ` : ''}
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 async function updateOrderStatus(orderId, newStatus) {
@@ -891,6 +1054,13 @@ function renderAdminInventory() {
   const tableBody = document.getElementById('ingredients-table-body');
   const productsContainer = document.getElementById('admin-inventory-list');
   if (!tableBody || !productsContainer) return;
+
+  // Actualizar timestamp de última actualización
+  const lastUpdatedEl = document.getElementById('inventory-last-updated');
+  if (lastUpdatedEl) {
+    const now = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+    lastUpdatedEl.textContent = `(Sincronizado: ${now})`;
+  }
 
   // Renderizar Insumos en la Tabla
   tableBody.innerHTML = APP_STATE.ingredients.map(ing => {
@@ -1591,7 +1761,15 @@ let _allStudents = [];
 async function loadAdminStudents() {
   const container = document.getElementById('admin-students-list');
   if (!container) return;
-  container.innerHTML = '<p class="empty-state">Cargando...</p>';
+  container.innerHTML = Array(5).fill().map(() => `
+    <div class="student-skeleton">
+      <div class="skel-avatar skeleton"></div>
+      <div class="skel-info">
+        <div class="skel-name skeleton" style="border-radius: 4px;"></div>
+        <div class="skel-email skeleton" style="border-radius: 4px;"></div>
+      </div>
+    </div>
+  `).join('');
   try {
     _allStudents = await apiGet('/students');
     renderStudentsList(_allStudents);
@@ -1909,6 +2087,16 @@ function openProductModal(productCode) {
   descEl.textContent  = product.description || 'Producto fresco de la Cafetería FIS — UNCP.';
   priceEl.textContent = formatPrice(product.price);
 
+  const starsRewardEl = document.getElementById('product-modal-stars-reward');
+  if (starsRewardEl) {
+    if (product.starsReward && product.starsReward > 0) {
+      starsRewardEl.innerHTML = `<span>✨ Ganas +${product.starsReward} ⭐ con este producto</span>`;
+      starsRewardEl.style.display = 'flex';
+    } else {
+      starsRewardEl.style.display = 'none';
+    }
+  }
+
   if (addBtn) {
     addBtn.disabled    = false;
     addBtn.textContent = '+ Añadir al carrito';
@@ -2088,6 +2276,59 @@ function switchStudentTab(tab) {
 
   if (tab === 'orders') {
     renderRecentOrders();
+  } else if (tab === 'rewards') {
+    fetchRecentOrdersForHistory();
+  }
+}
+
+async function fetchRecentOrdersForHistory() {
+  if (APP_STATE.currentUser) {
+    try {
+      _allOrders = await apiGet(`/orders/student/${encodeURIComponent(APP_STATE.currentUser.codigo)}`);
+      updateStarsHistory();
+    } catch (err) {
+      console.error('Error loading history for rewards:', err);
+    }
+  }
+}
+
+function updateStarsHistory() {
+  const historyList = document.getElementById('rewards-history-list');
+  if (!historyList) return;
+
+  const starOrders = _allOrders.filter(o => o.status === 'delivered');
+  const historyItems = [];
+
+  for (const order of starOrders) {
+    let orderStars = 0;
+    const itemsGained = [];
+    for (const item of order.items) {
+      const p = getProduct(item.productCode);
+      if (p && p.starsReward > 0) {
+        const itemStars = p.starsReward * item.qty;
+        orderStars += itemStars;
+        itemsGained.push(`${item.name} (${item.qty}x)`);
+      }
+    }
+    if (orderStars > 0) {
+      historyItems.push({
+        date: new Date(order.createdAt).toLocaleDateString('es-PE'),
+        stars: orderStars,
+        description: `+${orderStars} ⭐ por ${itemsGained.join(', ')}`
+      });
+    }
+    if (historyItems.length >= 3) break;
+  }
+
+  if (historyItems.length === 0) {
+    historyList.innerHTML = `<li style="color: var(--color-text-dim); font-size: 0.85rem; padding: 10px 0; border: none; list-style: none; justify-content: center; display: flex;">Aún no tienes historial de estrellas.</li>`;
+  } else {
+    historyList.innerHTML = historyItems.map(item => `
+      <li style="font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); padding: 8px 0; list-style: none;">
+        <span>${item.description}</span>
+        <span style="color: var(--color-text-dim); font-size: 0.75rem;">${item.date}</span>
+      </li>
+    `).join('');
   }
 }
 
