@@ -160,3 +160,4 @@ function todayStr() {
 function getProduct(code) {
   return APP_STATE.products.find(p => p.productCode === code);
 }
+
