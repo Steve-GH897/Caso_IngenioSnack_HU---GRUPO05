@@ -1,0 +1,4 @@
+**Fase 4: PROTOTIPAR (Baja Fidelidad)**
+Se diseñó un wireframe digital de la "Suscripción Fast-Pass" adaptado a una interfaz de laptop. El prototipo muestra un panel de control de usuario para un estudiante de la FIS, permitiéndole visualizar y elegir entre los dos planes de suscripción (Pase Semanal y Caja Sorpresa de Exámenes) con sus respectivos precios. Una vez suscrito, el panel integra un código QR dinámico que el estudiante debe mostrar en la ventanilla exclusiva de IngenioSnack para el recojo instantáneo, eliminando la fila tradicional. El diseño incluye barra de búsqueda, perfil de usuario (Mateo, FIS) e historial de pagos.
+
+*(Ver imagen adjunta: PROTOTIPO.png)*
