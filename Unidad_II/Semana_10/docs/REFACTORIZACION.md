@@ -1,7 +1,8 @@
+### ------------------------------------------
 # CODIGO ANTES
- 
-![Mi captura de pantalla](./Imagenes/Antes.png)
-
+### ------------------------------------------
+![Mi captura de pantalla](./imagenes/Antes.png)
+### ------------------------------------------
 # CODIGO DESPUES
-
-![Mi captura de pantalla](./Imagenes/Despues.png)
+### ------------------------------------------
+![Mi captura de pantalla](./imagenes/Despues.png)
