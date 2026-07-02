@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <script>
     (function() {
       const savedTheme = localStorage.getItem('theme') || 'light';
@@ -45,8 +46,122 @@
   <!-- GLOBAL ALERT TOAST -->
   <div id="toast-container" class="toast-container"></div>
 
-  <!-- ===== VIEW: LOGIN ===== -->
-  <div id="view-login" class="view active">
+  <!-- ===== VIEW: LANDING PAGE (primera pantalla) ===== -->
+  <div id="view-landing" class="view active">
+
+    <!-- HEADER PÚBLICO -->
+    <header class="landing-header" id="landing-header">
+      <div class="landing-header-inner">
+        <div class="landing-brand">
+          <img src="logo.png" alt="IngenioSnack" class="landing-logo" />
+          <span class="landing-brand-name">IngenioSnack</span>
+        </div>
+        <nav class="landing-nav">
+          <a href="#landing-featured" class="landing-nav-link" onclick="smoothScrollTo('landing-featured')">Novedades</a>
+          <a href="#landing-rewards" class="landing-nav-link" onclick="smoothScrollTo('landing-rewards')">Recompensas</a>
+        </nav>
+        <div class="landing-header-actions">
+          <button class="theme-toggle-btn" onclick="toggleTheme()" title="Cambiar tema">
+            <span class="theme-icon">🌙</span>
+          </button>
+          <button class="landing-btn-signin" id="landing-btn-signin" onclick="showLoginPanel('login')">Iniciar Sesión</button>
+          <button class="landing-btn-register" id="landing-btn-register" onclick="showLoginPanel('register')">Registrarse</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO BANNER -->
+    <section class="landing-hero" id="landing-hero">
+      <div class="landing-hero-overlay"></div>
+      <div class="landing-hero-content">
+        <span class="landing-hero-tagline">Cafetería Universitaria FIS · UNCP</span>
+        <h1 class="landing-hero-title">Tu snack favorito,<br/>sin esperar en fila</h1>
+        <p class="landing-hero-subtitle">Pide con anticipación desde tu celular y recoge listo. Acumula estrellas y desbloquea recompensas.</p>
+        <div class="landing-hero-cta">
+          <button class="landing-cta-primary" onclick="showLoginPanel('login')">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            Iniciar un pedido
+          </button>
+          <button class="landing-cta-secondary" onclick="smoothScrollTo('landing-featured')">Ver novedades</button>
+        </div>
+      </div>
+      <div class="landing-hero-badge">
+        <span>✨ Es un gran día para un café</span>
+        <span class="landing-hero-badge-cta" onclick="showLoginPanel('login')">Iniciar un pedido →</span>
+      </div>
+    </section>
+
+    <!-- SECCIÓN NOVEDADES -->
+    <section class="landing-featured" id="landing-featured">
+      <div class="landing-section-inner">
+        <h2 class="landing-section-title">Novedades de la Semana</h2>
+        <p class="landing-section-sub">Lo más pedido y lo más fresco de nuestra cafetería</p>
+        <div class="landing-featured-grid" id="landing-featured-grid">
+          <!-- Inyectado por JS -->
+          <div class="landing-feature-skeleton">
+            <div class="skeleton" style="height: 240px; border-radius: 12px 12px 0 0;"></div>
+            <div style="padding: 1.5rem;">
+              <div class="skeleton" style="height: 24px; width: 60%; margin-bottom: 12px;"></div>
+              <div class="skeleton" style="height: 16px; width: 90%; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 16px; width: 70%;"></div>
+            </div>
+          </div>
+          <div class="landing-feature-skeleton">
+            <div class="skeleton" style="height: 240px; border-radius: 12px 12px 0 0;"></div>
+            <div style="padding: 1.5rem;">
+              <div class="skeleton" style="height: 24px; width: 60%; margin-bottom: 12px;"></div>
+              <div class="skeleton" style="height: 16px; width: 90%; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 16px; width: 70%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN RECOMPENSAS -->
+    <section class="landing-rewards-section" id="landing-rewards">
+      <div class="landing-section-inner">
+        <h2 class="landing-section-title" style="color: var(--color-text);">Obtén tus favoritos gratis</h2>
+        <p class="landing-section-sub" style="color: var(--color-text-muted);">Acumula estrellas con cada compra y canjea premios increíbles</p>
+
+        <!-- Barra de niveles -->
+        <div class="rewards-tier-bar">
+          <button class="rewards-tier-btn active" data-stars="25" onclick="selectRewardTier(this, 25)">25★</button>
+          <button class="rewards-tier-btn" data-stars="60" onclick="selectRewardTier(this, 60)">60★</button>
+          <button class="rewards-tier-btn" data-stars="100" onclick="selectRewardTier(this, 100)">100★</button>
+          <button class="rewards-tier-btn" data-stars="200" onclick="selectRewardTier(this, 200)">200★</button>
+          <button class="rewards-tier-btn" data-stars="300" onclick="selectRewardTier(this, 300)">300★</button>
+        </div>
+
+        <!-- Panel de recompensa seleccionada -->
+        <div class="rewards-preview-panel">
+          <div class="rewards-preview-icon" id="rewards-preview-icon">☕</div>
+          <div class="rewards-preview-content">
+            <div class="rewards-preview-label" id="rewards-preview-label">Bebida personalizada gratis</div>
+            <p class="rewards-preview-desc" id="rewards-preview-desc">Canjea tu café americano favorito sin costo al acumular 25 estrellas en tus pedidos.</p>
+            <button class="landing-cta-primary" style="margin-top: 1.2rem; font-size: 0.9rem; padding: 0.7rem 1.4rem;" onclick="showLoginPanel('register')">
+              Empezar a acumular →
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="landing-footer">
+      <div class="landing-footer-inner">
+        <div class="landing-footer-brand">
+          <img src="logo.png" alt="IngenioSnack" style="width: 36px; height: 36px; border-radius: 8px;" />
+          <span>IngenioSnack · Cafetería FIS · UNCP</span>
+        </div>
+        <p style="color: var(--color-text-dim); font-size: 0.8rem;">Pedidos sin filas · Programa de recompensas · 2026</p>
+      </div>
+    </footer>
+
+  </div><!-- end #view-landing -->
+
+  <!-- ===== VIEW: LOGIN / REGISTRO ===== -->
+  <div id="view-login" class="view">
     <button class="theme-toggle-btn floating-toggle" onclick="toggleTheme()" title="Cambiar tema">
       <span class="theme-icon">🌙</span>
     </button>
@@ -56,50 +171,114 @@
       <div class="login-blob blob-3"></div>
     </div>
     <div class="login-card glass-card">
+      <!-- Botón de retorno a Landing -->
+      <button class="login-back-btn" onclick="showView('view-landing')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Volver al inicio
+      </button>
+
       <div class="login-logo-wrap">
         <img src="logo.png" alt="IngenioSnack" class="login-logo" />
       </div>
       <h2 class="login-title">IngenioSnack</h2>
       <p class="login-subtitle">Cafetería FIS · Pedidos sin filas</p>
-      <p class="login-note">Acceso exclusivo para estudiantes UNCP registrados</p>
       <hr class="login-divider" />
-      
+
       <!-- Tab Switcher -->
+      <div class="login-tabs">
+        <button class="login-tab-btn active" id="tab-signin" onclick="switchLoginTab('signin')">Iniciar Sesión</button>
+        <button class="login-tab-btn" id="tab-register" onclick="switchLoginTab('register')">Registrarse</button>
+      </div>
 
+      <!-- TAB: INICIAR SESIÓN -->
+      <div id="login-tab-signin" class="login-tab-content active">
+        <p class="login-note">Usa tu cuenta Microsoft Office 365 de la UNCP</p>
 
-      <div class="login-form">
-        <!-- Campo Correo -->
-        <label class="field-label" id="label-email" for="input-codigo">Correo Institucional UNCP</label>
-        <div class="input-wrap" id="input-codigo-wrap">
-          <span class="input-icon" id="icon-email">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          </span>
-          <input
-            type="text"
-            id="input-codigo"
-            class="field-input"
-            placeholder="e_XXXXXXXXXX@uncp.edu.pe"
-            autocomplete="off"
-            autofocus
-          />
+        <!-- Botón Microsoft -->
+        <button class="btn-microsoft" id="btn-ms-signin" onclick="loginWithMicrosoft('login')">
+          <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+            <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+            <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+            <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+          </svg>
+          <span>Ingresar con Microsoft 365</span>
+        </button>
+
+        <div class="login-divider-text"><span>o</span></div>
+
+        <!-- Formulario correo directo (solo para admin) -->
+        <div class="login-form">
+          <label class="field-label" id="label-email" for="input-codigo">Correo Institucional UNCP</label>
+          <div class="input-wrap" id="input-codigo-wrap">
+            <span class="input-icon" id="icon-email">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </span>
+            <input
+              type="text"
+              id="input-codigo"
+              class="field-input"
+              placeholder="e_XXXXXXXXXX@uncp.edu.pe"
+              autocomplete="off"
+              autofocus
+            />
+          </div>
+
+          <!-- Contraseña (solo admin) -->
+          <label class="field-label" for="input-password" id="label-password" style="margin-top: 15px; display: block;">Contraseña (administrador)</label>
+          <div class="input-wrap" id="input-password-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="input-password" class="field-input" placeholder="••••••••" onkeypress="if(event.key==='Enter') submitLogin()" />
+          </div>
+
+          <div class="login-options">
+            <button class="btn-primary btn-full" id="btn-login-submit" onclick="submitLogin()">
+              <span>Acceder como Administrador</span>
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
         </div>
 
-        <!-- Contraseña (visible siempre) -->
-        <label class="field-label" for="input-password" style="margin-top: 15px; display: block;">Contraseña (solo administradores)</label>
-        <div class="input-wrap" id="input-password-wrap">
-          <span class="input-icon">🔒</span>
-          <input type="password" id="input-password" class="field-input" placeholder="••••••••" onkeypress="if(event.key==='Enter') submitLogin()" />
-        </div>
-
-        <div class="login-options">
-          <button class="btn-primary btn-full" id="btn-login-submit" onclick="submitLogin()">
-            <span>Ingresar como Estudiante</span>
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </button>
-        </div>
-        <p id="login-error" class="login-error hidden">⚠️ Ingresa un correo institucional UNCP válido.</p>
+        <p id="login-error" class="login-error hidden">⚠️ Correo o contraseña incorrectos.</p>
         <p id="login-blocked" class="login-error hidden">🚫 Tu cuenta está bloqueada por strikes acumulados.</p>
       </div>
+
+      <!-- TAB: REGISTRARSE -->
+      <div id="login-tab-register" class="login-tab-content">
+        <p class="login-note">Crea tu cuenta con tu correo institucional UNCP</p>
+
+        <div class="register-benefits">
+          <div class="register-benefit-item">
+            <span class="register-benefit-icon">⭐</span>
+            <span>Acumula estrellas y desbloquea recompensas</span>
+          </div>
+          <div class="register-benefit-item">
+            <span class="register-benefit-icon">🥪</span>
+            <span>Pide sin filas y recoge cuando esté listo</span>
+          </div>
+          <div class="register-benefit-item">
+            <span class="register-benefit-icon">💳</span>
+            <span>Saldo inicial S/ 0.00, recargas disponibles</span>
+          </div>
+        </div>
+
+        <button class="btn-microsoft" id="btn-ms-register" onclick="loginWithMicrosoft('register')">
+          <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+            <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+            <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+            <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+          </svg>
+          <span>Crear cuenta con Microsoft 365</span>
+        </button>
+
+        <p id="register-error" class="login-error hidden" style="margin-top: 12px;"></p>
+
+        <p class="login-note" style="margin-top: 1.2rem; font-size: 0.78rem; color: var(--color-text-dim);">
+          Al registrarte, aceptas el uso de tu correo institucional UNCP para acceder a los servicios de IngenioSnack.
+        </p>
+      </div>
+
     </div>
   </div>
 
@@ -446,7 +625,7 @@
         <img src="logo.png" alt="Logo" class="header-logo" />
         <div>
           <div class="header-title">Panel Admin</div>
-          <div class="header-sub" id="admin-header-subtitle">Sr. Julio · Administrador</div>
+          <div class="header-sub" id="admin-header-subtitle">Administrador FIS</div>
         </div>
       </div>
       <div class="header-right">
@@ -720,6 +899,128 @@
         <button class="btn-primary" onclick="submitRecharge()">Recargar</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: CONFIRMACIÓN DE REGISTRO ===== -->
+<div id="modal-confirm-register" class="product-modal-overlay" onclick="closeConfirmRegister()">
+  <div class="product-modal-box register-confirm-box" onclick="event.stopPropagation()" style="max-width: 440px;">
+    <button class="product-modal-close" onclick="closeConfirmRegister()">✕</button>
+    <div class="product-modal-body" style="padding-top: 1.5rem;">
+      <div style="text-align: center; margin-bottom: 1.2rem;">
+        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🎉</div>
+        <h2 class="product-modal-name" style="font-size: 1.3rem;">¡Casi listo!</h2>
+        <p class="product-modal-desc">Hemos verificado tu cuenta de Microsoft. Confirma tus datos para crear tu cuenta en IngenioSnack.</p>
+      </div>
+
+      <div class="register-confirm-data">
+        <div class="register-confirm-row">
+          <span class="register-confirm-label">👤 Nombre:</span>
+          <span class="register-confirm-value" id="confirm-register-name">---</span>
+        </div>
+        <div class="register-confirm-row">
+          <span class="register-confirm-label">📧 Correo:</span>
+          <span class="register-confirm-value" id="confirm-register-email">---</span>
+        </div>
+        <div class="register-confirm-row">
+          <span class="register-confirm-label">💳 Saldo inicial:</span>
+          <span class="register-confirm-value" style="color: var(--color-success);">S/ 0.00</span>
+        </div>
+        <div class="register-confirm-row">
+          <span class="register-confirm-label">⭐ Estrellas:</span>
+          <span class="register-confirm-value" style="color: var(--color-yellow);">0 ⭐</span>
+        </div>
+      </div>
+
+      <div class="product-modal-footer" style="margin-top: 1.5rem; flex-direction: column; gap: 10px;">
+        <button class="btn-primary btn-full" id="btn-confirm-register" onclick="confirmRegister()">
+          ✅ Confirmar y crear cuenta
+        </button>
+        <button class="btn-ghost btn-full" onclick="closeConfirmRegister()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: SIMULADOR MICROSOFT 365 ===== -->
+<div id="microsoft-simulator-modal" class="ms-sim-overlay" onclick="closeMicrosoftSimulator()">
+  <div class="ms-sim-box" onclick="event.stopPropagation()">
+    <!-- MS Header -->
+    <div class="ms-sim-header">
+      <svg width="108" height="24" viewBox="0 0 108 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="11" height="11" fill="#F25022"/>
+        <rect x="12" width="11" height="11" fill="#7FBA00"/>
+        <rect y="12" width="11" height="11" fill="#00A4EF"/>
+        <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
+        <text x="28" y="17" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="600" fill="#1b1b1b">Microsoft</text>
+      </svg>
+    </div>
+
+    <!-- Panel de inicio de sesión -->
+    <div id="ms-sim-panel-signin" class="ms-sim-panel active">
+      <h1 class="ms-sim-title">Iniciar sesión</h1>
+
+      <div class="ms-sim-field-wrap">
+        <input type="email" id="ms-sim-email" class="ms-sim-input" placeholder=" " autocomplete="off" />
+        <label class="ms-sim-label">Correo electrónico, teléfono o Skype</label>
+      </div>
+      <p class="ms-sim-hint">¿No tienes una cuenta? <a href="#" onclick="switchLoginTab('register'); closeMicrosoftSimulator(); return false;" style="color: #0067b8; text-decoration: none;">Crear una</a></p>
+
+      <div class="ms-sim-actions">
+        <button class="ms-sim-btn-back" onclick="closeMicrosoftSimulator()">Atrás</button>
+        <button class="ms-sim-btn-next" onclick="msSimNextStep()">Siguiente</button>
+      </div>
+    </div>
+
+    <!-- Panel de contraseña -->
+    <div id="ms-sim-panel-password" class="ms-sim-panel">
+      <div class="ms-sim-account-display" id="ms-sim-account-display">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1b1b1b" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span id="ms-sim-email-display">usuario@uncp.edu.pe</span>
+        <button onclick="msSimGoBack()" style="background:none; border:none; color:#0067b8; cursor:pointer; font-size:0.8rem;">↩</button>
+      </div>
+      <h1 class="ms-sim-title">Introducir contraseña</h1>
+
+      <div class="ms-sim-field-wrap">
+        <input type="password" id="ms-sim-password" class="ms-sim-input" placeholder=" " autocomplete="current-password" onkeypress="if(event.key==='Enter') msSimAuthenticate()" />
+        <label class="ms-sim-label">Contraseña</label>
+      </div>
+      <a href="#" style="font-size: 0.8rem; color: #0067b8; text-decoration: none; display: block; margin: 4px 0 16px;">¿Olvidaste tu contraseña?</a>
+
+      <div class="ms-sim-actions" style="justify-content: flex-end;">
+        <button class="ms-sim-btn-next" onclick="msSimAuthenticate()">Iniciar sesión</button>
+      </div>
+    </div>
+
+    <!-- Panel de consentimiento -->
+    <div id="ms-sim-panel-consent" class="ms-sim-panel">
+      <h1 class="ms-sim-title" style="font-size: 1.1rem;">IngenioSnack solicita permiso</h1>
+      <p class="ms-sim-consent-desc">La aplicación quiere acceder a:</p>
+      <ul class="ms-sim-consent-list">
+        <li>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0067b8" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Ver tu perfil básico (nombre, correo)
+        </li>
+        <li>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0067b8" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Verificar tu dirección de correo electrónico
+        </li>
+      </ul>
+      <p style="font-size: 0.75rem; color: #666; margin: 12px 0;">Solo los correos @uncp.edu.pe tienen acceso. IngenioSnack no puede ver tu contraseña.</p>
+      <div class="ms-sim-actions">
+        <button class="ms-sim-btn-back" onclick="closeMicrosoftSimulator()">Cancelar</button>
+        <button class="ms-sim-btn-next" onclick="msSimComplete()">Aceptar</button>
+      </div>
+    </div>
+
+    <!-- Panel de cargando -->
+    <div id="ms-sim-panel-loading" class="ms-sim-panel">
+      <div style="text-align: center; padding: 2rem 0;">
+        <div class="ms-sim-spinner"></div>
+        <p style="font-family: 'Segoe UI', sans-serif; color: #1b1b1b; margin-top: 1rem; font-size: 0.9rem;">Verificando credenciales...</p>
+      </div>
+    </div>
+
   </div>
 </div>
 
