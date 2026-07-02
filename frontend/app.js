@@ -1,7 +1,14 @@
 /**
- * IngenioSnack — Main Application Logic (v2 — PostgreSQL Backend)
+ * IngenioSnack — Main Application Logic (v3 — Landing Page + OAuth 2.0)
  * Todos los datos se leen/escriben via API REST → Express → PostgreSQL
  */
+
+// Correo del administrador (debe coincidir con backend ADMIN_EMAIL)
+const ADMIN_EMAIL = 'e_2024101433h@uncp.edu.pe';
+
+// Estado temporal del simulador de Microsoft
+let _msSimMode = 'login'; // 'login' | 'register'
+let _msSimEmail = ''; // correo ingresado en el simulador
 
 // =============================================
 //  SPLASH & APP INIT
@@ -10,13 +17,15 @@ window.addEventListener('DOMContentLoaded', () => {
   // Inicializar tema de colores
   initTheme();
 
-  // Splash screen
+  // Splash screen → muestra Landing Page
   setTimeout(() => {
     const splash = document.getElementById('splash-screen');
     const app    = document.getElementById('app');
     if (splash) splash.classList.add('fade-out');
     if (app) app.classList.remove('hidden');
     if (splash) splash.addEventListener('transitionend', () => splash.style.display = 'none', { once: true });
+    // Inicializar landing page
+    initLandingPage();
   }, 2000);
 
   // Reloj para pantalla pública
@@ -31,7 +40,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (fromEl) fromEl.value = weekAgo;
   if (toEl)   toEl.value   = today;
 
-  // Enter en el campo de código
+  // Enter en el campo de código (admin)
   const codigoInput = document.getElementById('input-codigo');
   if (codigoInput) {
     codigoInput.addEventListener('keydown', e => {
@@ -39,7 +48,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Campo de contraseña dinámico (Mejora 1)
+  // Campo de contraseña dinámico para administrador
   initLoginDynamicField();
 
   // Sombra sticky en scroll
@@ -91,45 +100,39 @@ function goToMenu() {
 //  AUTHENTICATION (RF-02)
 // =============================================
 
-// Mejora 1: Mostrar/ocultar campo de contraseña dinámicamente según el usuario ingresado
+// Mostrar/ocultar campo de contraseña según el correo del administrador
 function initLoginDynamicField() {
   const codigoInput = document.getElementById('input-codigo');
-  const passWrap = document.getElementById('input-password-wrap');
-  const passLabel = document.querySelector('label[for="input-password"]');
+  const passWrap    = document.getElementById('input-password-wrap');
+  const passLabel   = document.getElementById('label-password');
   if (!codigoInput || !passWrap) return;
 
-  // Ocultar campo de contraseña inicialmente
+  // Ocultar campo de contraseña inicialmente (CSS se encarga, pero reforzamos con JS)
   passWrap.style.maxHeight = '0';
-  passWrap.style.opacity = '0';
-  passWrap.style.overflow = 'hidden';
-  passWrap.style.transition = 'max-height 0.35s ease, opacity 0.3s ease';
+  passWrap.style.opacity   = '0';
+  passWrap.style.overflow  = 'hidden';
+  passWrap.style.transition = 'max-height 0.4s ease, opacity 0.35s ease, margin-top 0.35s ease';
   if (passLabel) {
     passLabel.style.maxHeight = '0';
-    passLabel.style.opacity = '0';
-    passLabel.style.overflow = 'hidden';
-    passLabel.style.transition = 'max-height 0.35s ease, opacity 0.3s ease';
+    passLabel.style.opacity   = '0';
+    passLabel.style.overflow  = 'hidden';
+    passLabel.style.transition = 'max-height 0.4s ease, opacity 0.35s ease, margin-top 0.35s ease';
     passLabel.style.marginTop = '0';
   }
 
   codigoInput.addEventListener('input', () => {
-    const val = codigoInput.value.toLowerCase();
-    const isAdmin = val.includes('admin');
+    const val     = codigoInput.value.trim().toLowerCase();
+    const isAdmin = val === ADMIN_EMAIL || val === ADMIN_EMAIL.replace('@uncp.edu.pe', '');
     passWrap.style.maxHeight = isAdmin ? '80px' : '0';
-    passWrap.style.opacity  = isAdmin ? '1' : '0';
+    passWrap.style.opacity   = isAdmin ? '1'    : '0';
     if (passLabel) {
       passLabel.style.maxHeight = isAdmin ? '40px' : '0';
-      passLabel.style.opacity   = isAdmin ? '1' : '0';
+      passLabel.style.opacity   = isAdmin ? '1'    : '0';
       passLabel.style.marginTop = isAdmin ? '15px' : '0';
     }
-    const btnSubmit = document.getElementById('btn-login-submit');
-    if (btnSubmit) {
-      const labelSpan = btnSubmit.querySelector('span');
-      if (labelSpan) {
-        labelSpan.textContent = isAdmin ? 'Acceder como Administrador' : 'Acceder al Sistema';
-      }
-    }
     if (!isAdmin) {
-      document.getElementById('input-password').value = '';
+      const passInput = document.getElementById('input-password');
+      if (passInput) passInput.value = '';
     }
   });
 }
@@ -198,8 +201,8 @@ async function submitLogin() {
     if (err.status === 403 && err.message === 'blocked') {
       blockedEl.classList.remove('hidden');
       shakeEl(document.getElementById('input-codigo-wrap'));
-    } else if (err.status === 403 && err.data?.error === 'not_verified') {
-      errEl.textContent = '⚠️ Tu correo no está registrado en la base de datos.';
+    } else if (err.status === 403 && (err.data?.error === 'not_verified' || err.data?.error === 'not_registered')) {
+      errEl.textContent = '⚠️ Correo no registrado. Usa la opción "Registrarse" para crear tu cuenta.';
       errEl.classList.remove('hidden');
       shakeEl(document.getElementById('input-codigo-wrap'));
     } else {
@@ -221,11 +224,14 @@ function logout() {
   APP_STATE.cart = [];
   APP_STATE.products = [];
   APP_STATE.orders = [];
-  document.getElementById('input-codigo').value = '';
+  const codigoEl = document.getElementById('input-codigo');
+  if (codigoEl) codigoEl.value = '';
   const passInput = document.getElementById('input-password');
   if (passInput) passInput.value = '';
-  document.getElementById('login-error').classList.add('hidden');
-  document.getElementById('login-blocked').classList.add('hidden');
+  const loginErr = document.getElementById('login-error');
+  if (loginErr) loginErr.classList.add('hidden');
+  const loginBlocked = document.getElementById('login-blocked');
+  if (loginBlocked) loginBlocked.classList.add('hidden');
   localStorage.removeItem('jwt_token');
 
   // Desconectar WebSocket
@@ -237,13 +243,14 @@ function logout() {
   // Detener polling residual
   stopTicketPolling();
 
-  // Resetear a pestaña estudiante
-  // (resetear visualización del campo contraseña)
-  const passWrap = document.getElementById('input-password-wrap');
-  const passLabel = document.querySelector('label[for="input-password"]');
-  if (passWrap) { passWrap.style.maxHeight = '0'; passWrap.style.opacity = '0'; }
+  // Resetear visualización del campo contraseña
+  const passWrap  = document.getElementById('input-password-wrap');
+  const passLabel = document.getElementById('label-password');
+  if (passWrap)  { passWrap.style.maxHeight  = '0'; passWrap.style.opacity  = '0'; }
   if (passLabel) { passLabel.style.maxHeight = '0'; passLabel.style.opacity = '0'; }
-  showView('view-login');
+
+  // Regresar a la Landing Page
+  showView('view-landing');
 }
 
 function setLoginLoading(loading) {
@@ -2462,3 +2469,403 @@ async function reorder(orderId) {
 window.switchStudentTab = switchStudentTab;
 window.reorder = reorder;
 window.changeOrdersPage = changeOrdersPage;
+
+// =============================================
+//  LANDING PAGE
+// =============================================
+
+// Datos de los niveles de recompensas (Landing Page)
+const REWARD_TIERS = {
+  25:  { icon: '☕', label: 'Café americano gratis',        desc: 'Canjea tu café americano favorito sin costo al acumular 25 estrellas en tus pedidos.' },
+  60:  { icon: '🥪', label: 'Sándwich de tu elección',     desc: 'Elige tu sándwich preferido de nuestra carta al alcanzar las 60 estrellas acumuladas.' },
+  100: { icon: '🧃', label: 'Bebida natural o jugo',       desc: 'Una bebida natural o jugo de 500ml de regalo al llegar a las 100 estrellas.' },
+  200: { icon: '🍱', label: 'Combo completo gratis',       desc: 'Un combo completo (principal + bebida) sin costo extra al acumular 200 estrellas.' },
+  300: { icon: '🎁', label: 'Kit sorpresa del mes',        desc: 'Un kit sorpresa especial del mes con productos seleccionados para los clientes más fieles.' },
+};
+
+/**
+ * Inicializa la Landing Page: carga productos destacados y
+ * verifica si ya hay sesión activa para adaptar el header.
+ */
+async function initLandingPage() {
+  // Verificar sesión activa
+  const token = localStorage.getItem('jwt_token');
+  if (token) {
+    try {
+      const me = await apiGet('/students/me');
+      if (me) {
+        // Ya hay sesión — actualizar header de landing
+        const signInBtn   = document.getElementById('landing-btn-signin');
+        const registerBtn = document.getElementById('landing-btn-register');
+        if (signInBtn)   { signInBtn.textContent = '🍽️ Ir al Menú'; signInBtn.onclick = () => showView('view-menu'); }
+        if (registerBtn) registerBtn.style.display = 'none';
+      }
+    } catch { /* Sin sesión válida, continuar normalmente */ }
+  }
+
+  // Cargar productos destacados en la Landing Page
+  try {
+    const products = await apiGet('/products');
+    renderLandingFeatured(products);
+  } catch (err) {
+    console.warn('[Landing] Error cargando productos:', err);
+    const grid = document.getElementById('landing-featured-grid');
+    if (grid) grid.innerHTML = '<p style="text-align:center; color: var(--color-text-muted); padding: 2rem;">No se pudieron cargar los productos. Asegúrate de que el servidor esté activo.</p>';
+  }
+}
+
+/**
+ * Renderiza las tarjetas de productos destacados en la Landing Page.
+ */
+function renderLandingFeatured(products) {
+  const grid = document.getElementById('landing-featured-grid');
+  if (!grid) return;
+  if (!products || products.length === 0) {
+    grid.innerHTML = '<p style="text-align:center; color: var(--color-text-muted);">No hay productos disponibles en este momento.</p>';
+    return;
+  }
+
+  // Mostrar los 3 primeros productos activos
+  const featured = products.filter(p => p.available !== false).slice(0, 3);
+  grid.innerHTML = '';
+
+  featured.forEach(product => {
+    const card = document.createElement('div');
+    card.className = 'landing-feature-card';
+    const categoryLabel = { sandwiches: 'Sándwich', bebidas: 'Bebida', snacks: 'Snack' }[product.category] || 'Producto';
+    const priceFormatted = parseFloat(product.price || 0).toFixed(2);
+
+    let imgHtml = '';
+    if (product.image_url) {
+      imgHtml = `<img src="${product.image_url}" alt="${product.name}" class="landing-feature-img" onerror="this.parentElement.innerHTML='<span class=landing-feature-emoji>${getCategoryEmoji(product.category)}</span>'" />`;
+    } else {
+      imgHtml = `<span class="landing-feature-emoji">${getCategoryEmoji(product.category)}</span>`;
+    }
+
+    card.innerHTML = `
+      <div class="landing-feature-img-wrap">${imgHtml}</div>
+      <div class="landing-feature-body">
+        <span class="landing-feature-tag">${categoryLabel}</span>
+        <h3 class="landing-feature-name">${product.name}</h3>
+        <p class="landing-feature-desc">${product.description || 'Producto fresco preparado diariamente en nuestra cafetería universitaria.'}</p>
+        <div class="landing-feature-footer">
+          <span class="landing-feature-price">S/ ${priceFormatted}</span>
+          <button class="landing-feature-cta" onclick="showLoginPanel('login')">Pedir ahora</button>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+/**
+ * Cambia la recompensa mostrada en la Landing Page al seleccionar un nivel.
+ */
+function selectRewardTier(btnEl, stars) {
+  // Actualizar botones activos
+  document.querySelectorAll('.rewards-tier-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+
+  const tier = REWARD_TIERS[stars] || REWARD_TIERS[25];
+  const icon  = document.getElementById('rewards-preview-icon');
+  const label = document.getElementById('rewards-preview-label');
+  const desc  = document.getElementById('rewards-preview-desc');
+
+  if (icon)  { icon.style.opacity  = '0'; setTimeout(() => { icon.textContent  = tier.icon;  icon.style.opacity  = '1'; }, 200); }
+  if (label) { label.style.opacity = '0'; setTimeout(() => { label.textContent = tier.label; label.style.opacity = '1'; }, 200); }
+  if (desc)  { desc.style.opacity  = '0'; setTimeout(() => { desc.textContent  = tier.desc;  desc.style.opacity  = '1'; }, 200); }
+
+  // Aplicar transición
+  if (icon)  icon.style.transition  = 'opacity 0.2s ease';
+  if (label) label.style.transition = 'opacity 0.2s ease';
+  if (desc)  desc.style.transition  = 'opacity 0.2s ease';
+}
+
+/**
+ * Navega suavemente a una sección de la Landing Page.
+ */
+function smoothScrollTo(elementId) {
+  const el = document.getElementById(elementId);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return false;
+}
+
+/**
+ * Muestra el panel de login desde la Landing Page.
+ * mode: 'login' | 'register'
+ */
+function showLoginPanel(mode) {
+  showView('view-login');
+  switchLoginTab(mode === 'register' ? 'register' : 'signin');
+}
+
+/**
+ * Alterna entre las pestañas "Iniciar Sesión" y "Registrarse" del login card.
+ */
+function switchLoginTab(tab) {
+  document.querySelectorAll('.login-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.login-tab-content').forEach(c => c.classList.remove('active'));
+  const btn = document.getElementById(`tab-${tab}`);
+  const content = document.getElementById(`login-tab-${tab}`);
+  if (btn) btn.classList.add('active');
+  if (content) content.classList.add('active');
+}
+
+// =============================================
+//  OAUTH 2.0 — Microsoft Authentication
+// =============================================
+
+/**
+ * Inicia el flujo de autenticación con Microsoft.
+ * Si MSAL está configurado (CLIENT_ID), usa popup real de Azure AD.
+ * Si no, abre el simulador interactivo de Microsoft.
+ *
+ * @param {string} mode - 'login' | 'register'
+ */
+async function loginWithMicrosoft(mode) {
+  _msSimMode = mode || 'login';
+
+  // Intentar MSAL real si está disponible
+  const msalConfig = window.__MSAL_CONFIG__;
+  if (msalConfig && msalConfig.auth?.clientId) {
+    try {
+      const msalInstance = new msal.PublicClientApplication(msalConfig);
+      await msalInstance.initialize();
+      const response = await msalInstance.loginPopup({
+        scopes: ['openid', 'profile', 'email', 'User.Read'],
+      });
+      await handleMicrosoftResponse({
+        accessToken: response.accessToken,
+        email: response.account?.username || '',
+        name:  response.account?.name || 'Estudiante',
+        isMock: false,
+      });
+      return;
+    } catch (msalErr) {
+      console.warn('[MSAL] Error real, usando simulador:', msalErr);
+    }
+  }
+
+  // Fallback: abrir el simulador local
+  openMicrosoftSimulator();
+}
+
+/**
+ * Abre el modal del simulador de Microsoft.
+ */
+function openMicrosoftSimulator() {
+  const overlay = document.getElementById('microsoft-simulator-modal');
+  if (!overlay) return;
+
+  // Resetear al panel de email
+  document.querySelectorAll('.ms-sim-panel').forEach(p => p.classList.remove('active'));
+  const panelSignin = document.getElementById('ms-sim-panel-signin');
+  if (panelSignin) panelSignin.classList.add('active');
+
+  const emailInput = document.getElementById('ms-sim-email');
+  if (emailInput) emailInput.value = '';
+
+  overlay.classList.add('active');
+  setTimeout(() => { if (emailInput) emailInput.focus(); }, 200);
+}
+
+/**
+ * Cierra el simulador de Microsoft.
+ */
+function closeMicrosoftSimulator() {
+  const overlay = document.getElementById('microsoft-simulator-modal');
+  if (overlay) overlay.classList.remove('active');
+  _msSimEmail = '';
+}
+
+/**
+ * Panel del simulador → avanzar al paso de contraseña.
+ */
+function msSimNextStep() {
+  const emailInput = document.getElementById('ms-sim-email');
+  const email = (emailInput?.value || '').trim().toLowerCase();
+
+  if (!email || !email.includes('@')) {
+    emailInput?.classList.add('shake');
+    setTimeout(() => emailInput?.classList.remove('shake'), 600);
+    return;
+  }
+
+  if (!email.endsWith('@uncp.edu.pe') && !email.endsWith('@uncp.edu.p')) {
+    alert('Solo se permiten correos institucionales con dominio @uncp.edu.pe');
+    return;
+  }
+
+  _msSimEmail = email;
+
+  // Mostrar el email en la pantalla de contraseña
+  const display = document.getElementById('ms-sim-email-display');
+  if (display) display.textContent = email;
+
+  // Cambiar de panel
+  document.querySelectorAll('.ms-sim-panel').forEach(p => p.classList.remove('active'));
+  const panelPass = document.getElementById('ms-sim-panel-password');
+  if (panelPass) panelPass.classList.add('active');
+  setTimeout(() => { document.getElementById('ms-sim-password')?.focus(); }, 100);
+}
+
+/**
+ * Panel de contraseña → retroceder al email.
+ */
+function msSimGoBack() {
+  document.querySelectorAll('.ms-sim-panel').forEach(p => p.classList.remove('active'));
+  const panelSignin = document.getElementById('ms-sim-panel-signin');
+  if (panelSignin) panelSignin.classList.add('active');
+}
+
+/**
+ * "Iniciar sesión" en el simulador → mostrar pantalla de consentimiento.
+ * Nota: la contraseña no se valida realmente (es un simulador).
+ */
+async function msSimAuthenticate() {
+  const passInput = document.getElementById('ms-sim-password');
+  const pass = (passInput?.value || '').trim();
+
+  if (!pass) {
+    passInput?.classList.add('shake');
+    setTimeout(() => passInput?.classList.remove('shake'), 600);
+    return;
+  }
+
+  // Mostrar pantalla de consentimiento
+  document.querySelectorAll('.ms-sim-panel').forEach(p => p.classList.remove('active'));
+  const panelConsent = document.getElementById('ms-sim-panel-consent');
+  if (panelConsent) panelConsent.classList.add('active');
+}
+
+/**
+ * "Aceptar" en la pantalla de consentimiento del simulador.
+ */
+async function msSimComplete() {
+  // Mostrar pantalla de cargando
+  document.querySelectorAll('.ms-sim-panel').forEach(p => p.classList.remove('active'));
+  const panelLoading = document.getElementById('ms-sim-panel-loading');
+  if (panelLoading) panelLoading.classList.add('active');
+
+  // Nombre simulado: extraer prefijo del correo
+  const parts = _msSimEmail.split('@')[0]; // e_2024xxxxxxxa
+  const simulatedName = parts.includes('_')
+    ? `Estudiante ${parts.split('_')[1]?.substring(0, 4).toUpperCase() || ''}`
+    : 'Estudiante UNCP';
+
+  await handleMicrosoftResponse({
+    isMock: true,
+    email:  _msSimEmail,
+    name:   simulatedName,
+  });
+}
+
+/**
+ * Procesa la respuesta de Microsoft (real o simulada).
+ * Llama al backend /api/auth/microsoft para verificar existencia.
+ */
+async function handleMicrosoftResponse({ accessToken, email, name, isMock }) {
+  try {
+    const result = await apiPost('/auth/microsoft', { accessToken: accessToken || '', email, name, isMock });
+
+    closeMicrosoftSimulator();
+
+    if (result.exists === false) {
+      // Primera vez: mostrar modal de confirmación de registro
+      const nameEl  = document.getElementById('confirm-register-name');
+      const emailEl = document.getElementById('confirm-register-email');
+      if (nameEl)  nameEl.textContent  = name;
+      if (emailEl) emailEl.textContent = email;
+
+      // Guardar datos temporalmente
+      window._pendingRegistration = { email, name };
+
+      const modal = document.getElementById('modal-confirm-register');
+      if (modal) modal.classList.add('active');
+    } else if (result.exists === true && result.token) {
+      // Ya existe → inicio de sesión directo
+      await finalizeLogin(result);
+    }
+  } catch (err) {
+    closeMicrosoftSimulator();
+    console.error('[handleMicrosoftResponse]', err);
+    const errEl = document.getElementById('login-error');
+    if (errEl) {
+      errEl.textContent = '⚠️ ' + (err.data?.message || err.message || 'Error al verificar con Microsoft.');
+      errEl.classList.remove('hidden');
+    }
+    showToast('error', '❌', 'Error de autenticación', err.data?.message || 'No se pudo verificar tu cuenta de Microsoft.');
+  }
+}
+
+/**
+ * Confirma el registro del nuevo estudiante (desde el modal).
+ */
+async function confirmRegister() {
+  const pending = window._pendingRegistration;
+  if (!pending) return;
+
+  const btn = document.getElementById('btn-confirm-register');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando cuenta...'; }
+
+  try {
+    const result = await apiPost('/auth/register', { email: pending.email, name: pending.name });
+    closeConfirmRegister();
+    await finalizeLogin(result);
+    showToast('success', '🎉', '¡Bienvenido!', `Tu cuenta ha sido creada. ¡Empieza a acumular estrellas!`);
+  } catch (err) {
+    console.error('[confirmRegister]', err);
+    const errEl = document.getElementById('register-error');
+    if (errEl) {
+      errEl.textContent = '⚠️ ' + (err.data?.message || err.message || 'Error al crear la cuenta.');
+      errEl.classList.remove('hidden');
+    }
+    closeConfirmRegister();
+    showToast('error', '❌', 'Error de registro', err.data?.message || 'No se pudo crear la cuenta.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar y crear cuenta'; }
+    window._pendingRegistration = null;
+  }
+}
+
+/**
+ * Cierra el modal de confirmación de registro.
+ */
+function closeConfirmRegister() {
+  const modal = document.getElementById('modal-confirm-register');
+  if (modal) modal.classList.remove('active');
+  window._pendingRegistration = null;
+}
+
+/**
+ * Completa el inicio de sesión (estudiante o admin) con el resultado del backend.
+ */
+async function finalizeLogin(result) {
+  localStorage.setItem('jwt_token', result.token);
+  APP_STATE.currentUser = result.student;
+
+  if (result.role === 'admin') {
+    await loadAdmin();
+  } else {
+    await loadMenu();
+    await loadMyOrders();
+    updateRewardsView();
+    connectWebSocket();
+  }
+}
+
+// Exponer funciones globales necesarias para los manejadores onclick del HTML
+window.loginWithMicrosoft     = loginWithMicrosoft;
+window.openMicrosoftSimulator = openMicrosoftSimulator;
+window.closeMicrosoftSimulator = closeMicrosoftSimulator;
+window.msSimNextStep          = msSimNextStep;
+window.msSimGoBack            = msSimGoBack;
+window.msSimAuthenticate      = msSimAuthenticate;
+window.msSimComplete          = msSimComplete;
+window.confirmRegister        = confirmRegister;
+window.closeConfirmRegister   = closeConfirmRegister;
+window.showLoginPanel         = showLoginPanel;
+window.switchLoginTab         = switchLoginTab;
+window.smoothScrollTo         = smoothScrollTo;
+window.selectRewardTier       = selectRewardTier;
+window.initLandingPage        = initLandingPage;
