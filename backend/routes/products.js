@@ -13,7 +13,7 @@ const { authenticateToken, authorizeAdmin } = require('../middleware/auth');
  * Devuelve todos los productos.
  * Query param: ?category=sandwiches|bebidas|snacks
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { category } = req.query;
     let query = 'SELECT * FROM products ORDER BY id';
